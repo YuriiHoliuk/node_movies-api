@@ -1,22 +1,30 @@
 const express = require('express');
 const fs = require('fs');
+const moviesModel = require('./models/movies-model');
 
 const server = express();
-const port = 4000;
+const port = process.env.PORT || 4000;
 
-server.get(`/movies`, (req, res) => {
-  fs.readFile('data.json', (err, data) => {
-    if(err) {
-      res.sendStatus(500);
-    } else {
-      const sortMovies = JSON.parse(data)
-        .sort((film1, film2) => (
-          Number(film1.year) - Number(film2.year)
-        ));
+function handleApiError(res) {
+  return (apiError) => {
+    res.status(apiError.statusCode).json(apiError);
+  };
+}
 
-      res.send(sortMovies);
-    }
-  });
+function handleModelError(err) {
+  const apiError = {
+    statusCode: 500,
+    errorMessage: err.message,
+  };
+
+  throw apiError;
+}
+
+server.get(`/movies`, (req, res) => { // Controller
+  moviesModel.getList()
+    .catch(handleModelError)
+    .then(movies => res.send(movies))
+    .catch(handleApiError(res));
 });
 
 server.get('/movies/titles', (req, res) => {
@@ -44,20 +52,21 @@ server.get('/movies/titles', (req, res) => {
 });
 
 server.get('/movies/:id', (req, res) => {
-  fs.readFile('data.json', (err, data) => {
-    if(err) {
-      res.sendStatus(500);
-    } else {
-      const film = JSON.parse(data)
-      .find(movie => movie.id === req.params.id)
+  moviesModel.getMovieById(req.params.id)
+    .catch(handleModelError)
+    .then(movie => {
+      if (!movie) {
+        const apiError = {
+          statusCode: 404,
+          errorMessage: 'Not Found',
+        };
 
-      if (film) {
-        res.send(film);
-      } else {
-        res.status(404).send(`can't find film by id = ${req.params.id}`);
+        throw apiError;
       }
-    }
-  });
-})
+      
+      res.send(movie);
+    })
+    .catch(handleApiError(res));
+});
 
-server.listen(port, () => console.log('listening...'))
+server.listen(port, () => console.log(`Listening on port ${port}`))
