@@ -1,18 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-// const { promisify } = require('util');
-
-function promisify(fn) {
-    return (...args) => {
-        return new Promise((resolve, reject) => {
-            fn(...args, (err, data) => {
-                err
-                    ? reject(err)
-                    : resolve(data);
-            });
-        });
-    };
-}
+const { promisify } = require('util');
 
 const readFile = promisify(fs.readFile);
 const JSON_PATH = path.join(__dirname, '../../data.json');
@@ -22,7 +10,7 @@ class MoviesModel {
         this.jsonPath = jsonPath;
     }
 
-    async getList() {
+    async getList(res) {
         const fileContent = await readFile(this.jsonPath);
 
         return JSON.parse(fileContent).sort((film1, film2) => {
@@ -35,6 +23,19 @@ class MoviesModel {
   
         return JSON.parse(fileContent)
             .find(({ id }) => id === movieId);
+    }
+
+    async getTitles(year) {
+        const movies = await this.getList();
+
+        const filteredMovies = year
+            ? movies
+                .filter(movie => year === movie.year)
+            : movies;
+        
+        return filteredMovies
+            .map(({ title }) => title)
+            .join('\n');
     }
 }
 
